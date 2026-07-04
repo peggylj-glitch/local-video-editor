@@ -331,6 +331,7 @@ video {
 }
 
 .clip-card {
+  position: relative;
   flex: 0 0 auto;
   width: var(--clip-width, 140px);
   min-width: 96px;
@@ -358,6 +359,24 @@ video {
 .clip-card strong {
   overflow-wrap: anywhere;
   font-size: 13px;
+  padding-right: 22px;
+}
+
+.clip-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  padding: 0;
+  color: var(--muted);
+  line-height: 1;
+}
+
+.clip-remove:hover {
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 @media (max-width: 980px) {

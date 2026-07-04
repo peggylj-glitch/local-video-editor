@@ -199,6 +199,17 @@ function renderMedia() {
   });
 }
 
+function removeTimelineClip(index) {
+  if (index < 0 || index >= state.clips.length) return;
+  const wasSelected = index === state.selectedIndex;
+  state.clips.splice(index, 1);
+  if (index < state.selectedIndex) state.selectedIndex -= 1;
+  state.selectedIndex = Math.max(0, Math.min(state.selectedIndex, state.clips.length - 1));
+  renderAll();
+  if (state.clips.length && wasSelected) cueSelectedClip();
+  else if (!state.clips.length) stopTimeline();
+}
+
 function renderTimeline() {
   timeline.innerHTML = "";
   timeline.classList.toggle("empty", !state.clips.length);
@@ -215,10 +226,17 @@ function renderTimeline() {
     card.draggable = true;
     card.style.setProperty("--clip-width", `${Math.max(104, Math.min(340, clip.duration * 8))}px`);
     card.innerHTML = `
+      <button class="clip-remove" data-action="remove" title="Remove this clip" aria-label="Remove this clip">×</button>
       <strong>${index + 1}. ${clip.filename}</strong>
       <span>${formatTime(clip.start)} + ${formatTime(clip.duration)}</span>
       <span>Timeline ${formatTime(clipOffset(index))}</span>
     `;
+    const removeButton = card.querySelector('[data-action="remove"]');
+    removeButton.addEventListener("pointerdown", (event) => event.stopPropagation());
+    removeButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      removeTimelineClip(index);
+    });
     card.addEventListener("click", () => {
       state.selectedIndex = index;
       renderAll();
@@ -312,10 +330,7 @@ function renderSelectedClip() {
   node.querySelector('[data-action="shorter"]').addEventListener("click", () => changeDuration(clip.duration - 1, true));
   node.querySelector('[data-action="longer"]').addEventListener("click", () => changeDuration(clip.duration + 1, true));
   node.querySelector('[data-action="remove"]').addEventListener("click", () => {
-    state.clips.splice(state.selectedIndex, 1);
-    state.selectedIndex = Math.max(0, state.selectedIndex - 1);
-    renderAll();
-    cueSelectedClip();
+    removeTimelineClip(state.selectedIndex);
   });
 
   selectedClip.replaceChildren(node);
