@@ -26,3 +26,6 @@ yarn-error.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Old local layout folder
+public/

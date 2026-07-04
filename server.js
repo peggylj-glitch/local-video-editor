@@ -5,11 +5,16 @@ const path = require("path");
 const { spawn } = require("child_process");
 
 const ROOT = __dirname;
-const PUBLIC = path.join(__dirname, "public");
+const STATIC_FILES = new Map([
+  ["/", "index.html"],
+  ["/index.html", "index.html"],
+  ["/app.js", "app.js"],
+  ["/styles.css", "styles.css"],
+]);
 const PORT = Number(process.env.PORT || 8787);
 const HOST = "127.0.0.1";
-const FFMPEG = path.join(ROOT, "build/python_pkgs/imageio_ffmpeg/binaries/ffmpeg-macos-aarch64-v7.1");
-const FALLBACK_FFMPEG = "ffmpeg";
+const BUNDLED_FFMPEG = path.join(ROOT, "build/python_pkgs/imageio_ffmpeg/binaries/ffmpeg-macos-aarch64-v7.1");
+const FFMPEG = process.env.FFMPEG_PATH || (fs.existsSync(BUNDLED_FFMPEG) ? BUNDLED_FFMPEG : "ffmpeg");
 const W = 1080;
 const H = 1920;
 const FPS = 30;
@@ -27,7 +32,7 @@ const MIME = {
 };
 
 function ffmpegPath() {
-  return fs.existsSync(FFMPEG) ? FFMPEG : FALLBACK_FFMPEG;
+  return FFMPEG;
 }
 
 function send(res, status, body, headers = {}) {
@@ -67,6 +72,7 @@ function run(args) {
     let output = "";
     proc.stdout.on("data", (chunk) => (output += chunk.toString()));
     proc.stderr.on("data", (chunk) => (output += chunk.toString()));
+    proc.on("error", (error) => reject(error));
     proc.on("close", (code) => {
       if (code === 0) resolve(output);
       else reject(new Error(output || `ffmpeg exited ${code}`));
@@ -91,7 +97,6 @@ async function listMedia() {
   const entries = await fs.promises.readdir(mediaDir);
   const videos = entries
     .filter((name) => /\.(mov|mp4)$/i.test(name))
-    .filter((name) => !name.startsWith("Enno_Cheng_concert_diary"))
     .filter((name) => !name.endsWith("_export.mp4"))
     .sort();
 
@@ -169,9 +174,10 @@ async function clearSource() {
 
 function serveStatic(req, res) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
-  const requested = url.pathname === "/" ? "/index.html" : url.pathname;
-  const fullPath = path.resolve(PUBLIC, `.${requested}`);
-  if (!fullPath.startsWith(PUBLIC)) return send(res, 403, "Forbidden");
+  const fileName = STATIC_FILES.get(url.pathname);
+  if (!fileName) return send(res, 404, "Not found");
+
+  const fullPath = path.join(ROOT, fileName);
   fs.readFile(fullPath, (error, data) => {
     if (error) return send(res, 404, "Not found");
     send(res, 200, data, {
@@ -179,6 +185,25 @@ function serveStatic(req, res) {
       "Cache-Control": "no-store",
     });
   });
+}
+
+function isSameLocalOrigin(req) {
+  const source = req.headers.origin || req.headers.referer;
+  if (!source) return true;
+
+  try {
+    const url = new URL(source);
+    const host = url.hostname === "localhost" ? "127.0.0.1" : url.hostname;
+    return url.protocol === "http:" && host === HOST && url.port === String(PORT);
+  } catch {
+    return false;
+  }
+}
+
+function requireSameLocalOrigin(req, res) {
+  if (isSameLocalOrigin(req)) return true;
+  sendJson(res, 403, { error: "Request blocked: invalid origin" });
+  return false;
 }
 
 function serveMedia(req, res) {
@@ -297,17 +322,21 @@ async function handle(req, res) {
     const url = new URL(req.url, `http://localhost:${PORT}`);
     if (url.pathname.startsWith("/media/")) return serveMedia(req, res);
     if (url.pathname === "/api/import-video" && req.method === "PUT") {
+      if (!requireSameLocalOrigin(req, res)) return;
       return sendJson(res, 200, await importVideo(req));
     }
     if (url.pathname === "/api/clear-source" && req.method === "POST") {
+      if (!requireSameLocalOrigin(req, res)) return;
       return sendJson(res, 200, await clearSource());
     }
     if (url.pathname === "/api/media") return sendJson(res, 200, await listMedia());
     if (url.pathname === "/api/media-dir" && req.method === "POST") {
+      if (!requireSameLocalOrigin(req, res)) return;
       const payload = JSON.parse(await readBody(req));
       return sendJson(res, 200, await setMediaDir(payload.directory));
     }
     if (url.pathname === "/api/export" && req.method === "POST") {
+      if (!requireSameLocalOrigin(req, res)) return;
       const project = JSON.parse(await readBody(req));
       return sendJson(res, 200, await exportTimeline(project));
     }
