@@ -214,6 +214,21 @@ h2 {
   box-shadow: 0 0 0 2px rgba(241, 209, 107, 0.25);
 }
 
+.media-item.in-timeline {
+  background: #181818;
+  border-color: #444444;
+  color: var(--muted);
+}
+
+.media-item.in-timeline.selected {
+  border-color: #7f7146;
+  box-shadow: 0 0 0 2px rgba(241, 209, 107, 0.12);
+}
+
+.media-item.in-timeline strong {
+  color: #cfcfcf;
+}
+
 .media-item strong {
   overflow-wrap: anywhere;
 }

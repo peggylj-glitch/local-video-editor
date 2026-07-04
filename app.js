@@ -45,6 +45,10 @@ function clipIndexForMediaName(name) {
   return state.clips.findIndex((clip) => clip.filename === name);
 }
 
+function isMediaInTimeline(name) {
+  return state.clips.some((clip) => clip.filename === name);
+}
+
 function totalDuration() {
   return state.clips.reduce((sum, clip) => sum + Number(clip.duration || 0), 0);
 }
@@ -53,29 +57,8 @@ function clipOffset(index) {
   return state.clips.slice(0, index).reduce((sum, clip) => sum + Number(clip.duration || 0), 0);
 }
 
-function recommendedClipTiming(media) {
-  const sourceDuration = Number(media?.duration || 0);
-  if (!sourceDuration) return { start: 0, duration: 8 };
-
-  if (sourceDuration <= 6) {
-    return { start: 0, duration: Math.max(0.25, sourceDuration - 0.2) };
-  }
-
-  const start = sourceDuration > 20 ? Math.min(4, sourceDuration * 0.12) : Math.min(1.5, sourceDuration * 0.08);
-  const maxDuration = Math.max(0.25, sourceDuration - start - 0.5);
-  const targetDuration = sourceDuration > 45 ? 14 : sourceDuration > 18 ? 12 : 9;
-  return {
-    start: Number(start.toFixed(1)),
-    duration: Number(Math.min(targetDuration, maxDuration).toFixed(1)),
-  };
-}
-
-function clipStoryScore(clip) {
-  const duration = Number(clip.duration || 0);
-  if (duration <= 6) return 0;
-  if (duration <= 10) return 1;
-  if (duration <= 14) return 2;
-  return 3;
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function filenameOrder(filename) {
@@ -83,17 +66,88 @@ function filenameOrder(filename) {
   return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
 }
 
+function filenameSeed(filename) {
+  const order = filenameOrder(filename);
+  if (Number.isFinite(order)) return order;
+  return String(filename || "")
+    .split("")
+    .reduce((sum, char) => sum + char.charCodeAt(0), 0);
+}
+
+function recommendedClipTiming(media) {
+  const sourceDuration = Number(media?.duration || 0);
+  if (!sourceDuration) return { start: 0, duration: 8 };
+
+  if (sourceDuration <= 7) {
+    return { start: 0, duration: Number(Math.max(0.25, sourceDuration - 0.2).toFixed(1)) };
+  }
+
+  const seed = filenameSeed(media.name);
+  const variation = (seed % 7) / 6;
+  const durationRatio = sourceDuration > 70 ? 0.16 : sourceDuration > 35 ? 0.24 : 0.42;
+  const targetDuration = clamp(sourceDuration * durationRatio + variation * 4, 7, sourceDuration > 70 ? 20 : 15);
+  const maxStart = Math.max(0, sourceDuration - targetDuration - 0.5);
+
+  let startRatio;
+  if (sourceDuration > 70) startRatio = 0.18 + variation * 0.45;
+  else if (sourceDuration > 35) startRatio = 0.14 + variation * 0.36;
+  else startRatio = 0.08 + variation * 0.22;
+
+  const start = clamp(sourceDuration * startRatio, sourceDuration > 25 ? 2 : 0.5, maxStart);
+  return {
+    start: Number(start.toFixed(1)),
+    duration: Number(Math.min(targetDuration, sourceDuration - start).toFixed(1)),
+  };
+}
+
+function clipStoryScore(clip) {
+  const duration = Number(clip.duration || 0);
+  if (duration <= 6) return 0;
+  if (duration <= 10) return 1;
+  if (duration <= 15) return 2;
+  return 3;
+}
+
+function clipEnergyScore(clip) {
+  return Number(clip.duration || 0) + Number(clip.start || 0) * 0.08;
+}
+
 function autoArrangeTimeline() {
   if (state.clips.length < 2) return;
   const selectedClip = state.clips[state.selectedIndex];
-  state.clips = state.clips
+  const ordered = state.clips
     .map((clip, index) => ({ clip, index }))
-    .sort((a, b) => {
-      const filenameDiff = filenameOrder(a.clip.filename) - filenameOrder(b.clip.filename);
-      if (filenameDiff !== 0) return filenameDiff;
-      return clipStoryScore(a.clip) - clipStoryScore(b.clip) || a.index - b.index;
-    })
-    .map((item) => item.clip);
+    .sort((a, b) => filenameOrder(a.clip.filename) - filenameOrder(b.clip.filename) || a.index - b.index);
+
+  if (ordered.length < 4) {
+    state.clips = ordered.map((item) => item.clip);
+  } else {
+    const introCount = Math.max(1, Math.round(ordered.length * 0.25));
+    const endingCount = Math.max(1, Math.round(ordered.length * 0.15));
+    const intro = ordered.slice(0, introCount);
+    const rest = ordered.slice(introCount);
+    const ending = rest
+      .slice()
+      .sort((a, b) => clipEnergyScore(a.clip) - clipEnergyScore(b.clip) || b.index - a.index)
+      .slice(0, endingCount);
+    const endingSet = new Set(ending);
+    const middle = rest.filter((item) => !endingSet.has(item));
+    const peak = middle
+      .slice()
+      .sort((a, b) => clipEnergyScore(b.clip) - clipEnergyScore(a.clip) || a.index - b.index)
+      .slice(0, 1);
+    const peakSet = new Set(peak);
+    const build = middle.filter((item) => !peakSet.has(item));
+    const peakIndex = Math.max(0, Math.floor(build.length * 0.65));
+    state.clips = [
+      ...intro,
+      ...build.slice(0, peakIndex),
+      ...peak,
+      ...build.slice(peakIndex),
+      ...ending,
+    ].map((item) => item.clip);
+  }
+
   state.selectedIndex = Math.max(0, state.clips.indexOf(selectedClip));
   renderAll();
   cueSelectedClip();
@@ -165,13 +219,14 @@ function renderMedia() {
   mediaList.innerHTML = "";
   state.media.forEach((item) => {
     const node = document.createElement("article");
-    node.className = `media-item${item.name === state.selectedMediaName ? " selected" : ""}`;
+    const alreadyAdded = isMediaInTimeline(item.name);
+    node.className = `media-item${item.name === state.selectedMediaName ? " selected" : ""}${alreadyAdded ? " in-timeline" : ""}`;
     node.innerHTML = `
       <strong>${item.name}</strong>
       <span>${formatTime(item.duration)} · ${(item.size / 1024 / 1024).toFixed(1)} MB</span>
       <div class="media-actions">
         <button data-action="preview">Preview</button>
-        <button data-action="add">Add to timeline</button>
+        <button data-action="add" ${alreadyAdded ? "disabled" : ""}>${alreadyAdded ? "Added" : "Add to timeline"}</button>
       </div>
     `;
     node.querySelector('[data-action="preview"]').addEventListener("click", (event) => {
@@ -180,6 +235,7 @@ function renderMedia() {
     });
     node.querySelector('[data-action="add"]').addEventListener("click", (event) => {
       event.stopPropagation();
+      if (alreadyAdded) return;
       const recommendation = recommendedClipTiming(item);
       state.clips.push({
         filename: item.name,
@@ -189,6 +245,7 @@ function renderMedia() {
       });
       state.selectedIndex = state.clips.length - 1;
       state.previewMode = "timeline";
+      renderMedia();
       renderAll();
       cueSelectedClip();
     });
@@ -205,6 +262,7 @@ function removeTimelineClip(index) {
   state.clips.splice(index, 1);
   if (index < state.selectedIndex) state.selectedIndex -= 1;
   state.selectedIndex = Math.max(0, Math.min(state.selectedIndex, state.clips.length - 1));
+  renderMedia();
   renderAll();
   if (state.clips.length && wasSelected) cueSelectedClip();
   else if (!state.clips.length) stopTimeline();
@@ -502,6 +560,7 @@ document.querySelector("#autoArrangeTimeline").addEventListener("click", autoArr
 document.querySelector("#clearTimeline").addEventListener("click", () => {
   state.clips = [];
   state.selectedIndex = 0;
+  renderMedia();
   renderAll();
   stopTimeline();
 });
@@ -534,6 +593,7 @@ document.querySelector("#loadProject").addEventListener("change", async (event) 
   state.clips = Array.isArray(project.clips) ? project.clips : [];
   state.outputName = project.outputName || "local_editor_export.mp4";
   state.selectedIndex = 0;
+  renderMedia();
   renderAll();
   cueSelectedClip();
 });
