@@ -78,12 +78,21 @@ function clipStoryScore(clip) {
   return 3;
 }
 
+function filenameOrder(filename) {
+  const match = String(filename || "").match(/(\d+)(?!.*\d)/);
+  return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
+}
+
 function autoArrangeTimeline() {
   if (state.clips.length < 2) return;
   const selectedClip = state.clips[state.selectedIndex];
   state.clips = state.clips
     .map((clip, index) => ({ clip, index }))
-    .sort((a, b) => clipStoryScore(a.clip) - clipStoryScore(b.clip) || a.index - b.index)
+    .sort((a, b) => {
+      const filenameDiff = filenameOrder(a.clip.filename) - filenameOrder(b.clip.filename);
+      if (filenameDiff !== 0) return filenameDiff;
+      return clipStoryScore(a.clip) - clipStoryScore(b.clip) || a.index - b.index;
+    })
     .map((item) => item.clip);
   state.selectedIndex = Math.max(0, state.clips.indexOf(selectedClip));
   renderAll();
@@ -126,7 +135,6 @@ async function importSelectedVideos(files, label = "selection") {
     return;
   }
 
-  await clearSource();
   mediaList.innerHTML = `<p>Importing ${label}...</p>`;
   for (let index = 0; index < videos.length; index += 1) {
     const file = videos[index];
@@ -140,7 +148,7 @@ async function importSelectedVideos(files, label = "selection") {
     state.mediaDirectory = payload.directory || state.mediaDirectory;
   }
 
-  setFolderStatus(`Imported ${videos.length} videos from ${label}. Scanning durations...`);
+  setFolderStatus(`Added ${videos.length} videos from ${label}. Scanning durations...`);
   await loadMedia();
 }
 
