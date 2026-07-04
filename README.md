@@ -7,6 +7,8 @@ A small local browser editor for trimming and arranging vertical video clips. It
 - Choose local `.MOV` or `.MP4` source videos.
 - Preview a source video before adding it to the timeline.
 - Add clips to a drag-reorder timeline.
+- Uses simple rules to recommend a better start time and duration when a clip is added.
+- Auto-arranges timeline clips into a simple story flow.
 - Adjust each timeline clip's start time, duration, and volume.
 - Preview the full edit or only the selected timeline clip.
 - Save and load project timelines as JSON.
@@ -57,9 +59,10 @@ http://127.0.0.1:8787
 
 1. Click `Choose Source` and select one or more videos.
 2. Click a source video to preview it.
-3. Click `Add to timeline` for clips you want to include.
-4. Select timeline clips to preview and adjust start/duration.
-5. Click `Export Video` when ready.
+3. Click `Add to timeline` for clips you want to include. The editor will pick a suggested start and duration that you can adjust.
+4. Use `Auto Arrange` if you want the timeline ordered into a simple story flow.
+5. Select timeline clips to preview and fine-tune start/duration.
+6. Click `Export Video` when ready.
 
 Exports are written to the project folder. Temporary files are written to `build/`.
 

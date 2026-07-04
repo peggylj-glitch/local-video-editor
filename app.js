@@ -53,6 +53,43 @@ function clipOffset(index) {
   return state.clips.slice(0, index).reduce((sum, clip) => sum + Number(clip.duration || 0), 0);
 }
 
+function recommendedClipTiming(media) {
+  const sourceDuration = Number(media?.duration || 0);
+  if (!sourceDuration) return { start: 0, duration: 8 };
+
+  if (sourceDuration <= 6) {
+    return { start: 0, duration: Math.max(0.25, sourceDuration - 0.2) };
+  }
+
+  const start = sourceDuration > 20 ? Math.min(4, sourceDuration * 0.12) : Math.min(1.5, sourceDuration * 0.08);
+  const maxDuration = Math.max(0.25, sourceDuration - start - 0.5);
+  const targetDuration = sourceDuration > 45 ? 14 : sourceDuration > 18 ? 12 : 9;
+  return {
+    start: Number(start.toFixed(1)),
+    duration: Number(Math.min(targetDuration, maxDuration).toFixed(1)),
+  };
+}
+
+function clipStoryScore(clip) {
+  const duration = Number(clip.duration || 0);
+  if (duration <= 6) return 0;
+  if (duration <= 10) return 1;
+  if (duration <= 14) return 2;
+  return 3;
+}
+
+function autoArrangeTimeline() {
+  if (state.clips.length < 2) return;
+  const selectedClip = state.clips[state.selectedIndex];
+  state.clips = state.clips
+    .map((clip, index) => ({ clip, index }))
+    .sort((a, b) => clipStoryScore(a.clip) - clipStoryScore(b.clip) || a.index - b.index)
+    .map((item) => item.clip);
+  state.selectedIndex = Math.max(0, state.clips.indexOf(selectedClip));
+  renderAll();
+  cueSelectedClip();
+}
+
 async function loadMedia() {
   setFolderStatus("Scanning current source...");
   mediaList.innerHTML = "<p>Scanning videos...</p>";
@@ -135,10 +172,11 @@ function renderMedia() {
     });
     node.querySelector('[data-action="add"]').addEventListener("click", (event) => {
       event.stopPropagation();
+      const recommendation = recommendedClipTiming(item);
       state.clips.push({
         filename: item.name,
-        start: 0,
-        duration: Math.min(12, Math.max(3, item.duration || 8)),
+        start: recommendation.start,
+        duration: recommendation.duration,
         volume: 0.94,
       });
       state.selectedIndex = state.clips.length - 1;
@@ -436,6 +474,8 @@ chooseSourceVideos.addEventListener("change", (event) => {
   });
   event.target.value = "";
 });
+document.querySelector("#autoArrangeTimeline").addEventListener("click", autoArrangeTimeline);
+
 document.querySelector("#clearTimeline").addEventListener("click", () => {
   state.clips = [];
   state.selectedIndex = 0;
@@ -459,7 +499,7 @@ document.querySelector("#saveProject").addEventListener("click", () => {
   );
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = "concert-timeline.json";
+  link.download = "video-timeline.json";
   link.click();
   URL.revokeObjectURL(link.href);
 });
