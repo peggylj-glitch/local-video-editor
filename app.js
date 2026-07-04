@@ -49,6 +49,16 @@ function isMediaInTimeline(name) {
   return state.clips.some((clip) => clip.filename === name);
 }
 
+function previewObjectPosition(framing = "center") {
+  return {
+    left: "35% center",
+    right: "65% center",
+    top: "center 35%",
+    bottom: "center 65%",
+    center: "center center",
+  }[framing] || "center center";
+}
+
 function totalDuration() {
   return state.clips.reduce((sum, clip) => sum + Number(clip.duration || 0), 0);
 }
@@ -242,6 +252,7 @@ function renderMedia() {
         start: recommendation.start,
         duration: recommendation.duration,
         volume: 0.94,
+        framing: "center",
       });
       state.selectedIndex = state.clips.length - 1;
       state.previewMode = "timeline";
@@ -348,6 +359,7 @@ function renderSelectedClip() {
   const startRange = node.querySelector('[data-field="startRange"]');
   const durationInput = node.querySelector('[data-field="duration"]');
   const durationRange = node.querySelector('[data-field="durationRange"]');
+  const framingInput = node.querySelector('[data-field="framing"]');
   const volumeInput = node.querySelector('[data-field="volume"]');
   const outputInput = node.querySelector("#outputName");
 
@@ -357,6 +369,7 @@ function renderSelectedClip() {
   durationInput.value = clip.duration;
   durationRange.value = clip.duration;
   durationRange.max = Math.max(0.25, (media?.duration || clip.start + clip.duration) - clip.start);
+  framingInput.value = clip.framing || "center";
   volumeInput.value = clip.volume;
   outputInput.value = state.outputName;
 
@@ -379,6 +392,7 @@ function renderSelectedClip() {
   startRange.addEventListener("input", () => changeStart(startRange.value));
   durationInput.addEventListener("input", () => changeDuration(durationInput.value));
   durationRange.addEventListener("input", () => changeDuration(durationRange.value));
+  framingInput.addEventListener("input", () => updateClip({ framing: framingInput.value }));
   volumeInput.addEventListener("input", () => updateClip({ volume: Number(volumeInput.value) }));
   outputInput.addEventListener("input", () => {
     state.outputName = outputInput.value || "local_editor_export.mp4";
@@ -387,6 +401,7 @@ function renderSelectedClip() {
   node.querySelector('[data-action="startPlus"]').addEventListener("click", () => changeStart(clip.start + 1, true));
   node.querySelector('[data-action="shorter"]').addEventListener("click", () => changeDuration(clip.duration - 1, true));
   node.querySelector('[data-action="longer"]').addEventListener("click", () => changeDuration(clip.duration + 1, true));
+  node.querySelector('[data-action="finishPhrase"]').addEventListener("click", () => changeDuration(clip.duration + 2, true));
   node.querySelector('[data-action="remove"]').addEventListener("click", () => {
     removeTimelineClip(state.selectedIndex);
   });
@@ -401,6 +416,7 @@ function updateClip(patch, refreshEditor = false) {
   if (clip.start < 0) clip.start = 0;
   if (clip.duration < 0.25) clip.duration = 0.25;
   if (clip.volume < 0) clip.volume = 0;
+  if (!clip.framing) clip.framing = "center";
   renderTimeline();
   if (refreshEditor) renderSelectedClip();
   if (state.previewMode !== "source") cueSelectedClip(false);
@@ -452,6 +468,7 @@ function previewSource(media, autoplay = false) {
   renderMedia();
   renderTimeline();
   if (!preview.src.endsWith(media.url)) preview.src = media.url;
+  preview.style.objectPosition = "center center";
   preview.currentTime = 0;
   preview.volume = 1;
   updatePlayhead();
@@ -485,6 +502,7 @@ function cueSelectedClip(autoplay = false, mode = "timeline") {
   state.previewMode = mode;
   state.selectedMediaName = clip.filename;
   if (!preview.src.endsWith(media.url)) preview.src = media.url;
+  preview.style.objectPosition = previewObjectPosition(clip.framing);
   preview.currentTime = clip.start;
   preview.volume = Math.max(0, Math.min(1, clip.volume));
   updatePlayhead();

@@ -242,8 +242,21 @@ function normalizeClip(raw) {
   const start = Math.max(0, Number(raw.start || 0));
   const duration = Math.max(0.25, Number(raw.duration || 5));
   const volume = Math.max(0, Math.min(2, Number(raw.volume ?? 0.94)));
+  const allowedFraming = new Set(["center", "left", "right", "top", "bottom"]);
+  const framing = allowedFraming.has(raw.framing) ? raw.framing : "center";
   if (!safeMediaPath(filename)) throw new Error(`Missing media: ${filename}`);
-  return { filename, start, duration, volume };
+  return { filename, start, duration, volume, framing };
+}
+
+function cropExpression(framing) {
+  const positions = {
+    left: "0:(ih-oh)/2",
+    right: "iw-ow:(ih-oh)/2",
+    top: "(iw-ow)/2:0",
+    bottom: "(iw-ow)/2:ih-oh",
+    center: "(iw-ow)/2:(ih-oh)/2",
+  };
+  return positions[framing] || positions.center;
 }
 
 async function exportTimeline(rawProject) {
@@ -277,7 +290,7 @@ async function exportTimeline(rawProject) {
       "-map_metadata",
       "-1",
       "-vf",
-      `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,format=yuv420p`,
+      `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}:${cropExpression(clip.framing)},setsar=1,format=yuv420p`,
       "-af",
       `volume=${clip.volume},afade=t=in:st=0:d=0.12,afade=t=out:st=${fadeOutStart}:d=0.22`,
       "-r",

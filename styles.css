@@ -60,8 +60,17 @@ button.danger {
   color: var(--danger);
 }
 
-input {
+input,
+select {
   width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #101010;
+  color: var(--text);
+  padding: 9px 10px;
+}
+
+select {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #101010;
@@ -320,8 +329,12 @@ video {
 
 .quick-buttons {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.quick-buttons button:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 
 .timeline-panel {

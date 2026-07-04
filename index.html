@@ -95,7 +95,18 @@
         <div class="quick-buttons">
           <button data-action="shorter">Shorter -1s</button>
           <button data-action="longer">Longer +1s</button>
+          <button data-action="finishPhrase">Finish Phrase +2s</button>
         </div>
+        <label>
+          Framing
+          <select data-field="framing">
+            <option value="center">Center subject</option>
+            <option value="left">Subject left</option>
+            <option value="right">Subject right</option>
+            <option value="top">Subject higher</option>
+            <option value="bottom">Subject lower</option>
+          </select>
+        </label>
         <label>
           Volume
           <input data-field="volume" type="number" min="0" max="2" step="0.05" />

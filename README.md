@@ -9,7 +9,8 @@ A small local browser editor for trimming and arranging vertical video clips. It
 - Add clips to a drag-reorder timeline.
 - Uses varied rule-based defaults to recommend a better start time and duration when a clip is added.
 - Auto-arranges timeline clips into a simple story flow with an intro, build, peak, and ending.
-- Adjust each timeline clip's start time, duration, and volume.
+- Adjust each timeline clip's start time, duration, framing, and volume.
+- Use a quick phrase-ending helper to extend clips when speech or singing is cut off.
 - Preview the full edit or only the selected timeline clip.
 - Save and load project timelines as JSON.
 - Export a 1080x1920 vertical MP4 using ffmpeg.
@@ -61,8 +62,9 @@ http://127.0.0.1:8787
 2. Click a source video to preview it.
 3. Click `Add to timeline` for clips you want to include. The editor will pick a suggested start and duration that you can adjust.
 4. Use `Auto Arrange` if you want the timeline ordered into a simple story flow.
-5. Select timeline clips to preview and fine-tune start/duration.
-6. Click `Export Video` when ready.
+5. Select timeline clips to preview and fine-tune start/duration, framing, and volume.
+6. Use `Finish Phrase +2s` when a sentence or lyric ending is cut too early.
+7. Click `Export Video` when ready.
 
 Exports are written to the project folder. Temporary files are written to `build/`.
 
