@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Local Concert Timeline Editor</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div>
+          <h1>Concert Timeline Editor</h1>
+          <p>Arrange clips, trim timing, preview, then export a vertical 9:16 MP4.</p>
+        </div>
+        <div class="actions">
+          <button id="saveProject">Save JSON</button>
+          <label class="button">
+            Load JSON
+            <input id="loadProject" type="file" accept="application/json" hidden />
+          </label>
+          <button id="exportVideo" class="primary">Export MP4</button>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <aside class="media-panel">
+          <div class="panel-head">
+            <h2>Videos</h2>
+            <div class="panel-actions">
+              <button id="clearSource" title="Clear current source videos">Clear Source</button>
+            </div>
+          </div>
+          <div class="folder-picker">
+            <div class="source-chooser">
+              <button id="chooseSourceMenu" class="folder-button">Choose Source</button>
+              <input id="chooseSourceVideos" type="file" accept="video/*,.mov,.mp4" multiple hidden />
+            </div>
+            <p id="folderStatus" class="folder-status"></p>
+          </div>
+          <div id="mediaList" class="media-list"></div>
+        </aside>
+
+        <section class="preview-panel">
+          <div class="preview-shell">
+            <video id="preview" playsinline controls></video>
+          </div>
+          <div class="transport">
+            <button id="playWholeTimeline" class="primary">Play Full Edit</button>
+            <button id="previewSelectedSource">Preview Source Clip</button>
+            <button id="playSelectedClip">Play Timeline Clip Only</button>
+            <button id="stopTimeline">Stop</button>
+            <span id="playhead">00:00 / 00:00</span>
+          </div>
+          <p class="transport-hint">Preview Source Clip works for the current source video. Timeline playback buttons work after a clip is added to the timeline.</p>
+          <div id="selectedClip" class="selected-clip empty">Select a clip to adjust timing.</div>
+        </section>
+      </section>
+
+      <section class="timeline-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Timeline</h2>
+            <p id="timelineMeta">0 clips · 00:00</p>
+          </div>
+          <button id="clearTimeline">Clear</button>
+        </div>
+        <div id="timeline" class="timeline"></div>
+      </section>
+    </main>
+
+    <template id="clipEditorTemplate">
+      <div class="clip-editor">
+        <div class="clip-editor-head">
+          <strong data-field="name"></strong>
+          <button data-action="remove">Remove</button>
+        </div>
+        <label>
+          Start
+          <input data-field="start" type="number" min="0" step="0.1" />
+        </label>
+        <input data-field="startRange" type="range" min="0" step="0.1" />
+        <div class="quick-buttons">
+          <button data-action="startMinus">Start -1s</button>
+          <button data-action="startPlus">Start +1s</button>
+        </div>
+        <label>
+          Duration
+          <input data-field="duration" type="number" min="0.25" step="0.1" />
+        </label>
+        <input data-field="durationRange" type="range" min="0.25" step="0.1" />
+        <div class="quick-buttons">
+          <button data-action="shorter">Shorter -1s</button>
+          <button data-action="longer">Longer +1s</button>
+        </div>
+        <label>
+          Volume
+          <input data-field="volume" type="number" min="0" max="2" step="0.05" />
+        </label>
+        <label>
+          Output name
+          <input id="outputName" type="text" />
+        </label>
+        <p data-field="hint"></p>
+      </div>
+    </template>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

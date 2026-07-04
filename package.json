@@ -1,0 +1,21 @@
+{
+  "name": "localvideoeditor",
+  "version": "1.0.0",
+  "private": false,
+  "description": "A small local browser editor for trimming and arranging vertical video clips.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check public/app.js"
+  },
+  "keywords": [
+    "video-editor",
+    "timeline",
+    "ffmpeg",
+    "vertical-video"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
