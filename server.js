@@ -14,7 +14,15 @@ const STATIC_FILES = new Map([
 const PORT = Number(process.env.PORT || 8787);
 const HOST = "127.0.0.1";
 const BUNDLED_FFMPEG = path.join(ROOT, "build/python_pkgs/imageio_ffmpeg/binaries/ffmpeg-macos-aarch64-v7.1");
-const FFMPEG = process.env.FFMPEG_PATH || (fs.existsSync(BUNDLED_FFMPEG) ? BUNDLED_FFMPEG : "ffmpeg");
+function installedFfmpegPath() {
+  try {
+    return require("@ffmpeg-installer/ffmpeg").path;
+  } catch {
+    return null;
+  }
+}
+const INSTALLED_FFMPEG = installedFfmpegPath();
+const FFMPEG = process.env.FFMPEG_PATH || (fs.existsSync(BUNDLED_FFMPEG) ? BUNDLED_FFMPEG : INSTALLED_FFMPEG || "ffmpeg");
 const W = 1080;
 const H = 1920;
 const FPS = 30;

@@ -110,6 +110,32 @@ function recommendedClipTiming(media) {
   };
 }
 
+function probeVideoDuration(url) {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.muted = true;
+    video.src = url;
+    video.onloadedmetadata = () => {
+      const duration = Number.isFinite(video.duration) ? video.duration : 0;
+      video.removeAttribute("src");
+      video.load();
+      resolve(duration);
+    };
+    video.onerror = () => resolve(0);
+  });
+}
+
+async function mediaWithDuration(media) {
+  if (Number(media?.duration || 0) > 0) return media;
+  const duration = await probeVideoDuration(media.url);
+  if (duration > 0) {
+    media.duration = duration;
+    renderMedia();
+  }
+  return media;
+}
+
 function clipStoryScore(clip) {
   const duration = Number(clip.duration || 0);
   if (duration <= 6) return 0;
@@ -243,12 +269,13 @@ function renderMedia() {
       event.stopPropagation();
       previewSource(item, true);
     });
-    node.querySelector('[data-action="add"]').addEventListener("click", (event) => {
+    node.querySelector('[data-action="add"]').addEventListener("click", async (event) => {
       event.stopPropagation();
       if (alreadyAdded) return;
-      const recommendation = recommendedClipTiming(item);
+      const readyItem = await mediaWithDuration(item);
+      const recommendation = recommendedClipTiming(readyItem);
       state.clips.push({
-        filename: item.name,
+        filename: readyItem.name,
         start: recommendation.start,
         duration: recommendation.duration,
         volume: 0.94,
